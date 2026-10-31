@@ -18,9 +18,25 @@
 </script>
 
 <div class="meld-card" class:active-wait={isWait}>
+  <!-- Visual Tile Graphic Group -->
+  <div class="tile-display">
+    <div class="tile">{isSimple ? "#" : "☆"}</div>
+    <div class="tile">{isSimple ? "#" : "☆"}</div>
+    <div class="tile">{isSimple ? "#" : "☆"}</div>
+    {#if type === "KAN"}
+    <div class="tile">{isSimple ? "#" : "☆"}</div>
+    {/if}
+  </div>
+
+  <!-- Open/Closed Control -->
+  <div class="toggle-group orange">
+    <label><input type="radio" bind:group={isOpen} value={true } /><span> OPEN </span></label>
+    <label><input type="radio" bind:group={isOpen} value={false} /><span>CLOSED</span></label>
+  </div>
+
   <!-- Top Segmented Control (Meld Type) -->
   <div class="toggle-group orange">
-    <label><input type="radio" bind:group={type} value="CHI" /><span>CHI</span></label>
+    <label><input type="radio" bind:group={type} value="CHI" on:click={() => isSimple = true}/><span>CHI</span></label>
     <label><input type="radio" bind:group={type} value="PON" /><span>PON</span></label>
     <label><input type="radio" bind:group={type} value="KAN" /><span>KAN</span></label>
   </div>
@@ -39,25 +55,9 @@
     </label>
   </div>
 
-  <!-- Visual Tile Graphic Group -->
-  <div class="tile-display">
-    <div class="tile">{isSimple ? "#" : "☆"}</div>
-    <div class="tile">{isSimple ? "#" : "☆"}</div>
-    <div class="tile">{isSimple ? "#" : "☆"}</div>
-    {#if type === "KAN"}
-      <div class="tile">{isSimple ? "#" : "☆"}</div>
-    {/if}
-  </div>
-
-  <!-- Open/Closed Control -->
-  <div class="toggle-group orange">
-    <label><input type="radio" bind:group={isOpen} value={true} /><span>OPEN</span></label>
-    <label><input type="radio" bind:group={isOpen} value={false} /><span>CLOSED</span></label>
-  </div>
-
   <!-- Fu Status Details -->
   <div class="info-footer">
-    <div class="fu-display">[{fuValue}]</div>
+    <div class="lcd">{fuValue}</div>
     <button class="wait-btn" class:waiting={isWait} on:click={() => isWait = !isWait}>
       WAIT
     </button>
@@ -65,8 +65,18 @@
 </div>
 
 <style>
+  @font-face {
+    font-family: 'Ubuntu Embedded';
+    src: url('fonts/Ubuntu-Light.ttf') format('truetype');
+    /*font-weight: 300;*/
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'LCD Segment';
+    src: url('fonts/LCDAT_TPhoneTimeDate.ttf') format('truetype');
+  }
+
   .meld-card {
-background: #1e1e1e;
     border: 2px solid transparent;
     padding: 3px;
     border-radius: 8px;
@@ -121,14 +131,22 @@ background: #1e1e1e;
     align-items: center;
     justify-content: center;
     font-size: 2.25rem;
-    font-family: monospace;
     /* font-weight: bold; */
     border-top: 6px solid #fb9c01; /* Orange top border accents matching your app */
-    /* box-shadow: 0 2px 4px rgba(0,0,0,0.3); */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
   }
 
   .info-footer { text-align: center; color: #fff; font-family: monospace; }
-  .fu-display { margin-bottom: 2px; color: #aaa; }
+  .lcd {
+    font-family: 'LCD Segment';
+    font-size: 2rem;
+    text-align: right;
+    /* background:#b9e9ad; */
+    background:hsl(80, 61%, 85%);
+    color: #000;
+    padding: 2px;
+    padding-top: 6px;
+  }
 
   .wait-btn {
     background: #333; color: #888; border: none; padding: 2px 8px;

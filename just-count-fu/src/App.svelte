@@ -10,7 +10,10 @@
   ];
 
   // Independent isolated tracking logic for the final pair structure
-  let pairType = "WIND"; // DRAGON, WIND, SIMPLE
+  let pairDragon = false;
+  let pairWind = false;
+  let pairSeat = false;
+  let pairRound = false;
   let pairIsWait = false;
 
   let isTsumo = false;
@@ -18,7 +21,7 @@
   if (isTsumo) { base += 2};
 
   // Reactively tally up all your separate Fu calculations automatically
-  $: totalFu = calculateTotalFu(melds, pairType, pairIsWait, isTsumo);
+  $: totalFu = calculateTotalFu(melds, false, pairIsWait, isTsumo);
 
   function calculateTotalFu(currentMelds, pair, wait, tsumo) {
     let base = 20;
@@ -46,14 +49,20 @@
 
     <!-- Simpler manual pair controller card styling -->
     <div class="pair-card" class:active-wait={pairIsWait}>
-      <div class="toggle-group white">
-        <label><input type="radio" bind:group={pairType} value="DRAGON" /><span>DRAGON</span></label>
-        <label><input type="radio" bind:group={pairType} value="WIND" /><span>WIND</span></label>
-      </div>
       <div class="tile-display">
         <div class="tile">#</div>
         <div class="tile">#</div>
       </div>
+      <div class="toggle-group white">
+        <label><input type="checkbox" bind:checked={pairDragon} on:click={()=> pairWind=false}/><span>DRAGON</span></label>
+        <label><input type="checkbox" bind:checked={pairWind}  on:click={()=> pairDragon=false}/><span>WIND</span></label>
+      </div>
+      <div class="toggle-group white" class:disabled={!pairWind}>
+        <label><input type="checkbox" bind:checked={pairRound}/><span>ROUND</span></label>
+        <label><input type="checkbox" bind:checked={pairSeat} /><span>SEAT</span></label>
+      </div>
+
+
       <div class="info-footer">
         <div class="fu-display">[0]</div>
         <button class="wait-btn" class:waiting={pairIsWait} on:click={() => pairIsWait = !pairIsWait}>
@@ -117,6 +126,7 @@
     display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: bold;
     border-top: 6px solid #f59e0b; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
   }
+  .disabled { opacity: 0.0; pointer-events: none; }
 
   .info-footer { text-align: center; font-family: monospace; }
   .fu-display { color: #aaa; margin-bottom: 2px; }
