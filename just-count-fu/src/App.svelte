@@ -1,30 +1,34 @@
+<svelte:options runes={true} /* Don't accept legacy syntax */ />
+
 <script>
   // Instantiate hand state
-  let melds = [
+  let melds = $state([
     { type: "CHI", isSimple: true, isOpen: false, isWait: false },
     { type: "CHI", isSimple: true, isOpen: false, isWait: false },
     { type: "CHI", isSimple: true, isOpen: false, isWait: false },
     { type: "CHI", isSimple: true, isOpen: false, isWait: false }
-  ];
+  ]);
+
+  let meldFu = $derived(melds.map((m) => calculateMeldFu(m.type, m.isSimple, m.isOpen)));
 
   // separate logic for pair value
-  let pair = {dragon: false, wind: false, seat: false, round: false};
-  let pairDragon = false;
-  let pairWind = false;
-  let pairSeat = false;
-  let pairRound = false;
+  let pair = $state({Dragon: false, Wind: false, Seat: false, Round: false});
+  let pairFu = $derived((pair.Dragon ? 2:0) + (pair.Wind && pair.Seat ? 2:0) + (pair.Wind && pair.Round ? 2:0));
+  let pairSymbol = $derived({0:"#", 2:"☆", 4:"★"}[pairFu]);
   let pairIsWait = false;
 
-  let isTsumo = false;
-  let base = 20;
-  if (isTsumo) { base += 2};
+  let isTsumo = $state(false);
+  let base = $derived(20 + (isTsumo? 2:0) );
 
   // Reactively tally up all your separate Fu calculations automatically
-  $: totalFu = calculateTotalFu(melds, false, pairIsWait, isTsumo);
+  // let totalFu = $derived(calculateTotalFu(melds, false, pairIsWait, isTsumo));
+  let totalFu = $derived(base + pairFu + meldFu.reduce((a,b)=>a+b,0));
 
-  function calculateTotalFu(currentMelds, pair, wait, tsumo) {
-    let base = 20;
-    // Add logic summing values here...
+  function calculateMeldFu(type, simple, open) {
+    if (type === "CHI") return 0;
+    let base = type === "KAN" ? 8 : 2; // PON is 2, KAN is 8
+    if (!simple) base *= 2;
+    if (!open) base *= 2; // Double for closed sets
     return base;
   }
 </script>
@@ -39,7 +43,7 @@
   <div class="board-layout">
     {#each melds as meld, index}
       <div class="card" class:active-wait={meld.isWait}>
-        <!-- Visual Tile Graphic Group -->
+        <!-- Tile Group Visualizer -->
         <div class="tile-display">
           <div class="tile">{meld.isSimple ? "#" : "☆"}</div>
           <div class="tile">{meld.isSimple ? "#" : "☆"}</div>
@@ -55,14 +59,14 @@
           <label><input type="radio" bind:group={meld.isOpen} value={false} /><span>CLOSED</span></label>
         </div>
 
-        <!-- Top Segmented Control (Meld Type) -->
+        <!-- Meld Type Picker -->
         <div class="toggle-group orange">
-          <label><input type="radio" bind:group={meld.type} value="CHI" on:click={() => meld.isSimple = true}/><span>CHI</span></label>
+          <label><input type="radio" bind:group={meld.type} value="CHI" onclick={() => meld.isSimple = true}/><span>CHI</span></label>
           <label><input type="radio" bind:group={meld.type} value="PON" /><span>PON</span></label>
           <label><input type="radio" bind:group={meld.type} value="KAN" /><span>KAN</span></label>
         </div>
 
-        <!-- Middle Segmented Control (Tile Value Type) -->
+        <!-- Tile value picker -->
         <div class="toggle-group orange" class:disabled={meld.type === "CHI"}>
           <label>
             <input type="radio" bind:group={meld.isSimple} value={true}/>
@@ -74,35 +78,37 @@
           </label>
         </div>
 
-        <!-- Fu Status Details -->
+        <!-- intermediate Fu value -->
         <div class="info-footer">
-          <div class="lcd">6</div>
-          <button class="wait-btn" class:waiting={meld.isWait} on:click={() => meld.isWait = !meld.isWait}>
+          <div class="lcd">{meldFu[index]}</div>
+          <button class="wait-btn" class:waiting={meld.isWait} onclick={() => meld.isWait = !meld.isWait}>
             WAIT
           </button>
         </div>
       </div>
     {/each}
 
-    <!-- Simpler manual pair controller card styling -->
+    <!-- ...and the pair -->
     <div class="card" class:active-wait={pairIsWait}>
       <div class="tile-display">
-        <div class="tile">#</div>
-        <div class="tile">#</div>
+        <div class="tile">{pairSymbol}</div>
+        <div class="tile">{pairSymbol}</div>
       </div>
       <div class="toggle-group white">
-        <label><input type="checkbox" bind:checked={pairDragon} on:click={()=> pairWind=false}/><span>DRAGON</span></label>
-        <label><input type="checkbox" bind:checked={pairWind}  on:click={()=> pairDragon=false}/><span>WIND</span></label>
+        <label><input type="checkbox" bind:checked={pair.Dragon} onclick={()=> pair.Wind=false}/><span>DRAGON</span></label>
+        <label><input type="checkbox" bind:checked={pair.Wind}  onclick={()=> pair.Dragon=false}/><span>WIND</span></label>
       </div>
-      <div class="toggle-group white" class:disabled={!pairWind}>
-        <label><input type="checkbox" bind:checked={pairRound}/><span>ROUND</span></label>
-        <label><input type="checkbox" bind:checked={pairSeat} /><span>SEAT</span></label>
+      <div class="toggle-group white" class:disabled={!pair.Wind}>
+        <label><input type="checkbox" bind:checked={pair.Round}/><span>ROUND</span></label>
+        <label><input type="checkbox" bind:checked={pair.Seat} /><span>SEAT</span></label>
       </div>
+
+      <div class="toggle-group white disabled"><span>#</span></div>
 
 
       <div class="info-footer">
-        <div class="lcd">0</div>
-        <button class="wait-btn" class:waiting={pairIsWait} on:click={() => pairIsWait = !pairIsWait}>
+        <div class="lcd">{pairFu}</div>
+        <button class="wait-btn" class:waiting={pairIsWait} onclick={() => pairIsWait = !pairIsWait}>
           WAIT
         </button>
       </div>
@@ -117,8 +123,8 @@
     </div>
 
     <div class="results">
-      <p>base: [{base}]</p>
-      <p class="final-score">Score is {totalFu} -> ({totalFu})</p>
+      <p>base: [{totalFu}]</p>
+      <p class="final-score">Score is {totalFu} -> ({Math.ceil(totalFu / 10.0) * 10 })</p>
       <button class="reset-btn">RESET</button>
     </div>
   </footer>
@@ -137,7 +143,7 @@
   }
 
   :global(body) { background-color: #121212; color: #fff; margin: 0; }
-  .app-container { max-width: 1600px; margin: 0 auto; padding: 16px; font-family: sans-serif; }
+  .app-container { max-width: 1800px; margin: 0 auto; padding: 16px; font-family: sans-serif; }
 
   h1 { font-size: 1.2rem; margin: 0; text-align: center; color: #eee; }
   .subtitle { font-size: 0.9rem; color: #777; margin: 2px 0 16px 0; }
@@ -145,7 +151,7 @@
   .board-layout {
     display: flex;
     flex-direction: row;       /* Force horizontal alignment by default */
-    flex-wrap: wrap;           /* Safely wrap to the next line if the screen is too narrow */
+    flex-wrap: nowrap;           /* Safely wrap to the next line if the screen is too narrow */
     justify-content: center;   /* Center the items horizontally on the screen */
     gap: 16px;                 /* Clean spacing between the card groups */
     width: 100%;
@@ -172,7 +178,7 @@
     border-radius: 20px;
     overflow:hidden;
     padding: 2px;
-    width: 80%;
+    width: 90%;
   }
   .toggle-group label {
     flex: 1;
@@ -195,7 +201,7 @@
   .disabled { opacity: 0.0; pointer-events: none; }
 
   /* Tile Visual Assets */
-  .tile-display { display: flex; gap: 4px; margin: 4px 0; min-height: 70px; }
+  .tile-display { display: flex; gap: 2px; margin: 4px 0; min-height: 70px; }
   .tile {
     background: #fff;
     color: #000;
