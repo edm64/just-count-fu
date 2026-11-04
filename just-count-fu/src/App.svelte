@@ -1,27 +1,22 @@
 <svelte:options runes={true} /* Don't accept legacy syntax */ />
 
 <script>
-  // Instantiate hand state
-  let melds = $state([
-    { type: "CHI", isSimple: true, isOpen: false, isWait: false },
-    { type: "CHI", isSimple: true, isOpen: false, isWait: false },
-    { type: "CHI", isSimple: true, isOpen: false, isWait: false },
-    { type: "CHI", isSimple: true, isOpen: false, isWait: false }
-  ]);
+  // initialize hand state
+  const defaultMelds = new Array(4).fill({ type: "CHI", isSimple: true, isOpen: false, isWait: false });
+  let melds = $state([ ...defaultMelds ]);
 
   let meldFu = $derived(melds.map((m) => calculateMeldFu(m.type, m.isSimple, m.isOpen)));
 
   // separate logic for pair value
-  let pair = $state({Dragon: false, Wind: false, Seat: false, Round: false});
+  const defaultPair = {Dragon: false, Wind: false, Seat: false, Round: false};
+  let pair = $state({ ...defaultPair });
   let pairFu = $derived((pair.Dragon ? 2:0) + (pair.Wind && pair.Seat ? 2:0) + (pair.Wind && pair.Round ? 2:0));
   let pairSymbol = $derived({0:"#", 2:"☆", 4:"★"}[pairFu]);
-  let pairIsWait = false;
+  let pairIsWait = $state(false);
 
   let isTsumo = $state(false);
   let base = $derived(20 + (isTsumo? 2:0) );
 
-  // Reactively tally up all your separate Fu calculations automatically
-  // let totalFu = $derived(calculateTotalFu(melds, false, pairIsWait, isTsumo));
   let totalFu = $derived(base + pairFu + meldFu.reduce((a,b)=>a+b,0));
 
   function calculateMeldFu(type, simple, open) {
@@ -30,6 +25,11 @@
     if (!simple) base *= 2;
     if (!open) base *= 2; // Double for closed sets
     return base;
+  }
+  function reset() {
+    melds = [ ...defaultMelds ];
+    pair = { ...defaultPair };
+    isTsumo = false;
   }
 </script>
 
@@ -44,7 +44,7 @@
     {#each melds as meld, index}
       <div class="card" class:active-wait={meld.isWait}>
         <!-- Tile Group Visualizer -->
-        <div class="tile-display">
+        <div class="tile-display" class:open={meld.isOpen} class:chi={meld.type==="CHI"}>
           <div class="tile">{meld.isSimple ? "#" : "☆"}</div>
           <div class="tile">{meld.isSimple ? "#" : "☆"}</div>
           <div class="tile">{meld.isSimple ? "#" : "☆"}</div>
@@ -125,7 +125,7 @@
     <div class="results">
       <p>base: [{totalFu}]</p>
       <p class="final-score">Score is {totalFu} -> ({Math.ceil(totalFu / 10.0) * 10 })</p>
-      <button class="reset-btn">RESET</button>
+      <button class="reset-btn" onclick={reset}>RESET</button>
     </div>
   </footer>
 </main>
@@ -134,7 +134,6 @@
   @font-face {
     font-family: 'Ubuntu Embedded';
     src: url('fonts/Ubuntu-Light.ttf') format('truetype');
-    /*font-weight: 300;*/
     font-style: normal;
   }
   @font-face {
@@ -151,9 +150,9 @@
   .board-layout {
     display: flex;
     flex-direction: row;       /* Force horizontal alignment by default */
-    flex-wrap: nowrap;           /* Safely wrap to the next line if the screen is too narrow */
-    justify-content: center;   /* Center the items horizontally on the screen */
-    gap: 16px;                 /* Clean spacing between the card groups */
+    flex-wrap: nowrap;         /* Keep entire hand on one line */
+    justify-content: center;   /* Center items together, horizontally on the screen */
+    gap: 16px;                 /* Spacing between the card groups */
     width: 100%;
     margin-bottom: 24px;
   }
@@ -184,7 +183,7 @@
     flex: 1;
     text-align: center;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     font-weight: bold;
   }
   .toggle-group span {
@@ -194,7 +193,7 @@
     color: #ccc;
   }
   .toggle-group input { display: none; }
-  .orange input:checked + span { background: #f59e0b; color: #000; }
+  .orange input:checked + span { background: #fb9c01; color: #000; }
   .white input:checked + span { background: #fff; color: #000; }
   .narrow { max-width: 150px; margin-bottom: 16px; }
 
@@ -212,10 +211,15 @@
     align-items: center;
     justify-content: center;
     font-size: 2.25rem;
-    /* font-weight: bold; */
-    border-top: 6px solid #fb9c01; /* Orange top border accents matching your app */
+    border-top: 8px solid #fb9c01; /* Yellow tile back peeking out, implying oblique perspective */
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
   }
+  /* oblique perspective, implies tile is face-up on table */
+  .open .tile { border-bottom: 8px solid #fb9c01; border-top: none; }
+  /* increasing font size for sequences */
+  .chi .tile:first-child { font-size: 1.5rem; }
+  .chi .tile             { font-size: 2rem; }
+  .chi .tile:last-child  { font-size: 2.5rem; }
 
   .lcd {
     font-family: 'LCD Segment';
