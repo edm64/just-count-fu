@@ -2,7 +2,7 @@
 
 <script>
   // initialize hand state
-  const defaultMelds = new Array(4).fill({ type: "CHI", isSimple: true, isOpen: false, isWait: false });
+  const defaultMelds = new Array(4).fill({ type: "CHI", isSimple: true, isOpen: false});
   let melds = $state([ ...defaultMelds ]);
 
   let meldFu = $derived(melds.map((m) => calculateMeldFu(m.type, m.isSimple, m.isOpen)));
@@ -12,12 +12,19 @@
   let pair = $state({ ...defaultPair });
   let pairFu = $derived((pair.Dragon ? 2:0) + (pair.Wind && pair.Seat ? 2:0) + (pair.Wind && pair.Round ? 2:0));
   let pairSymbol = $derived({0:"#", 2:"☆", 4:"★"}[pairFu]);
-  let pairIsWait = $state(false);
+
+  let singleWait = $state(false);
+  let waitFu = $derived( singleWait ? 2:0 );
 
   let isTsumo = $state(false);
-  let base = $derived(20 + (isTsumo? 2:0) );
 
-  let totalFu = $derived(base + pairFu + meldFu.reduce((a,b)=>a+b,0));
+  let subtotalFu = $derived(pairFu + waitFu + meldFu.reduce((m, sum)=>m+sum,0));
+  let isPinfu = $derived(subtotalFu == 0);
+  let concealedHand = $derived(melds.every(m=>!m.isOpen));
+
+  let special = $derived(getSpecialFu());
+
+  let totalFu = $derived(special.fu + subtotalFu);
 
   function calculateMeldFu(type, simple, open) {
     if (type === "CHI") return 0;
@@ -26,10 +33,35 @@
     if (!open) base *= 2; // Double for closed sets
     return base;
   }
+
+  function getSpecialFu(){
+    // TSUMO
+    if (isTsumo){
+      if (isPinfu) {
+        return {fu:20, reason: "Self-drawn Pinfu"};
+      }
+      else {
+        return {fu:22, reason: "#"};
+      }
+    }
+    // RON
+    else {
+      if (concealedHand) {
+        return {fu:30, reason: "Closed Ron"};
+      }
+      else if (isPinfu) {
+        return {fu:30, reason: "Open Pinfu"};
+      }
+      else {
+        return {fu:20, reason: "#"};
+      }
+    }
+  }
   function reset() {
     melds = [ ...defaultMelds ];
     pair = { ...defaultPair };
     isTsumo = false;
+    singleWait = false;
   }
 </script>
 
@@ -42,7 +74,7 @@
   <!-- High level layout automatically converting to rows on cramped mobile screens -->
   <div class="board-layout">
     {#each melds as meld, index}
-      <div class="card" class:active-wait={meld.isWait}>
+      <div class="card">
         <!-- Tile Group Visualizer -->
         <div class="tile-display" class:open={meld.isOpen} class:chi={meld.type==="CHI"}>
           <div class="tile">{meld.isSimple ? "#" : "☆"}</div>
@@ -79,17 +111,12 @@
         </div>
 
         <!-- intermediate Fu value -->
-        <div class="info-footer">
-          <div class="lcd">{meldFu[index]}</div>
-          <button class="wait-btn" class:waiting={meld.isWait} onclick={() => meld.isWait = !meld.isWait}>
-            WAIT
-          </button>
-        </div>
+        <div class="lcd">{meldFu[index]}</div>
       </div>
     {/each}
 
     <!-- ...and the pair -->
-    <div class="card" class:active-wait={pairIsWait}>
+    <div class="card">
       <div class="tile-display">
         <div class="tile">{pairSymbol}</div>
         <div class="tile">{pairSymbol}</div>
@@ -103,28 +130,39 @@
         <label><input type="checkbox" bind:checked={pair.Seat} /><span>SEAT</span></label>
       </div>
 
+      <!-- Invisible placeholder for consistent spacing -->
       <div class="toggle-group white disabled"><span>#</span></div>
 
-
-      <div class="info-footer">
-        <div class="lcd">{pairFu}</div>
-        <button class="wait-btn" class:waiting={pairIsWait} onclick={() => pairIsWait = !pairIsWait}>
-          WAIT
-        </button>
-      </div>
+      <div class="lcd">{pairFu}</div>
     </div>
   </div>
 
   <!-- Bottom Global Action Controls -->
   <footer>
-    <div class="toggle-group orange narrow">
-      <label><input type="radio" bind:group={isTsumo} value={false} /><span>RON</span></label>
-      <label><input type="radio" bind:group={isTsumo} value={true} /><span>TSUMO</span></label>
+    <div class="control-row">
+      <div class="toggle-group orange">
+        <label><input type="radio" bind:group={singleWait} value={false} /><span>MULTI-TILE WAIT</span></label>
+        <label><input type="radio" bind:group={singleWait} value={true} /><span>SINGLE-TILE WAIT</span></label>
+      </div>
+      <div class="lcd">{waitFu}</div>
     </div>
 
+    <div class="control-row">
+      <div class="toggle-group orange">
+        <label><input type="radio" bind:group={isTsumo} value={false} /><span>RON</span></label>
+        <label><input type="radio" bind:group={isTsumo} value={true} /><span>TSUMO</span></label>
+      </div>
+      <div class="lcd">{special.fu}</div>
+    </div>
+    <div class="results" class:disabled={special.reason==="#"}>{special.reason}</div>
+
+    <div class="control-row">
+      <div class="results">Total:</div>
+      <div class="lcd"> {totalFu}</div>
+    </div>
     <div class="results">
-      <p>base: [{totalFu}]</p>
-      <p class="final-score">Score is {totalFu} -> ({Math.ceil(totalFu / 10.0) * 10 })</p>
+      <span class="results">Rounded Up -></span> <span class="final-score">({Math.ceil(totalFu / 10.0) * 10 })</span>
+      <br/>
       <button class="reset-btn" onclick={reset}>RESET</button>
     </div>
   </footer>
@@ -168,7 +206,6 @@
     flex: 1 1 140px;
     max-width: 180px;
   }
-  .active-wait { border-color: #0284c7; }
 
   /* Segmented option choosers */
   .toggle-group {
@@ -195,7 +232,6 @@
   .toggle-group input { display: none; }
   .orange input:checked + span { background: #fb9c01; color: #000; }
   .white input:checked + span { background: #fff; color: #000; }
-  .narrow { max-width: 150px; margin-bottom: 16px; }
 
   .disabled { opacity: 0.0; pointer-events: none; }
 
@@ -224,22 +260,41 @@
   .lcd {
     font-family: 'LCD Segment';
     font-size: 2rem;
+    line-height: 1;
     text-align: right;
     /* background:#b9e9ad; */
     background:hsl(80, 61%, 85%);
     color: #000;
+    width: 3rem;
     padding: 2px;
     padding-top: 6px;
+    box-sizing: border-box;
   }
-  .info-footer { text-align: center; font-family: monospace; }
+  /* align right-most lcd with the column below it */
+  .card:last-child .lcd {
+    margin-left: auto;
+    margin-right: 0;
+  }
 
-  .wait-btn {
-    background: #333; color: #888; border: none; padding: 2px 8px;
-    font-size: 0.7rem; border-radius: 4px; cursor: pointer;
+  footer {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+    width:100%;
   }
-  .wait-btn.waiting { background: #0284c7; color: #fff; }
+
+  .control-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding: 3px;
+  }
+  .control-row div {flex-shrink: 0;}
 
   .results { font-family: monospace; color: #aaa; }
-  .final-score { color: #fff; font-size: 1.1rem; margin: 4px 0; }
+  .final-score { color: #fb9c01; font-size: 1.4rem; margin: 4px 0; }
   .reset-btn { background: #333; color: #ccc; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-top: 8px; }
 </style>
