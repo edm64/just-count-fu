@@ -171,12 +171,12 @@
 <style>
   @font-face {
     font-family: 'Ubuntu Embedded';
-    src: url('fonts/Ubuntu-Light.ttf') format('truetype');
+    src: url('/fonts/Ubuntu-Light.ttf') format('truetype');
     font-style: normal;
   }
   @font-face {
     font-family: 'LCD Segment';
-    src: url('fonts/LCDAT_TPhoneTimeDate.ttf') format('truetype');
+    src: url('/fonts/LCDAT_TPhoneTimeDate.ttf') format('truetype');
   }
 
   :global(body) { background-color: #121212; color: #fff; margin: 0; }
